@@ -9,6 +9,8 @@ BEGIN
     DECLARE @pesoMateriales DECIMAL(8,2) ;
     DECLARE @pesoDesechos DECIMAL(8,2) ;
 
+    BEGIN TRANSACTION     
+
     SELECT @pesoDesechos = ISNULL(SUM(d.peso), 0)
     FROM desechos d
     INNER JOIN tipodesecho td ON td.idtipodesecho = d.idtipodesecho
@@ -21,6 +23,8 @@ BEGIN
     INNER JOIN desechos d ON d.iddesecho = im.iddesecho
     INNER JOIN tipodesecho td ON td.idtipodesecho = d.idtipodesecho
     WHERE td.nombre = @desechoacomparar;
+
+    COMMIT TRANSACTION
 
     DECLARE @diferencia DECIMAL(8,2);
 
