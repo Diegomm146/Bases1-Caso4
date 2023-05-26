@@ -49,8 +49,36 @@ BEGIN
 	END
 	
 	BEGIN TRY
-    
-        WAITFOR DELAY '00:00:6';
+
+
+        -- se registra el movimiento de recibimiento de los desechos
+        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
+        (idresponsable, cantidad, fecha, idtipo_movimiento,idpunto_recoleccion,idproductor,idrecolector,idcamion,idadress,idcontrato)
+        VALUES(@idresponsable,(SELECT SUM(recipientes) FROM @info),GETDATE(),1,(SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
+
+        SET @idMovimiento = @@IDENTITY;
+
+        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
+        SELECT @idMovimiento, r.idrecipiente
+        FROM @recipientesRecibiendo r
+
+        -- se registra el movimiento de dar los recipientes
+        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
+        (idresponsable, cantidad, fecha, idtipo_movimiento,idproductor,idrecolector,idcamion,idadress,idcontrato)
+        VALUES(@idresponsable,(SELECT COUNT(*) FROM @recipientesDando),GETDATE(),2, @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
+
+        SET @idMovimiento = @@IDENTITY;
+
+        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
+        SELECT @idMovimiento, r.idrecipiente
+        FROM @recipientesDando r
+
+        -- se insertan los desechos del movimiento
+        INSERT INTO desechos(idtipodesecho,idcontrato,peso,enabled)
+        SELECT (SELECT TOP 1 idtipodesecho FROM tipodesecho WHERE tipodesecho.nombre = i.tipoDesecho), @idcontrato, i.peso, 1
+        FROM @info i
+
+        WAITFOR DELAY '00:00:06';
 
         IF EXISTS (SELECT rd.idRecipiente -- revisar si los recipientes recibiendo y dando repiten valores entre si
             FROM @recipientesDando rd
@@ -81,34 +109,6 @@ BEGIN
             RAISERROR('RECIPIENTES INSUFICIENTES PARA ALGUNO DE LOS TIPOS DE DESECHO', 16, 1);
             RETURN; 
         END
-
-        -- se registra el movimiento de recibimiento de los desechos
-        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
-        (idresponsable, cantidad, fecha, idtipo_movimiento,idpunto_recoleccion,idproductor,idrecolector,idcamion,idadress,idcontrato)
-        VALUES(@idresponsable,(SELECT SUM(recipientes) FROM @info),GETDATE(),1,(SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
-
-        SET @idMovimiento = @@IDENTITY;
-
-        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
-        SELECT @idMovimiento, r.idrecipiente
-        FROM @recipientesRecibiendo r
-
-        -- se registra el movimiento de dar los recipientes
-        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
-        (idresponsable, cantidad, fecha, idtipo_movimiento,idproductor,idrecolector,idcamion,idadress,idcontrato)
-        VALUES(@idresponsable,(SELECT COUNT(*) FROM @recipientesDando),GETDATE(),2, @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
-
-        SET @idMovimiento = @@IDENTITY;
-
-        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
-        SELECT @idMovimiento, r.idrecipiente
-        FROM @recipientesDando r
-
-        -- se insertan los desechos del movimiento
-        INSERT INTO desechos(idtipodesecho,idcontrato,peso,enabled)
-        SELECT (SELECT TOP 1 idtipodesecho FROM tipodesecho WHERE tipodesecho.nombre = i.tipoDesecho), @idcontrato, i.peso, 1
-        FROM @info i
-
 
 
 		IF @InicieTransaccion=1 BEGIN
