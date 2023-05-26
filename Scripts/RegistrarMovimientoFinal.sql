@@ -45,12 +45,11 @@ BEGIN
 	IF @@TRANCOUNT=0 BEGIN
 		SET @InicieTransaccion = 1
 		BEGIN TRANSACTION		
-        SET TRANSACTION ISOLATION LEVEL SERIALIZABLE
+        SET TRANSACTION ISOLATION LEVEL REPEATABLE READ
 	END
 	
 	BEGIN TRY
     
-        WAITFOR DELAY '00:00:6';
 
         IF EXISTS (SELECT rd.idRecipiente -- revisar si los recipientes recibiendo y dando repiten valores entre si
             FROM @recipientesDando rd
@@ -108,9 +107,7 @@ BEGIN
         INSERT INTO desechos(idtipodesecho,idcontrato,peso,enabled)
         SELECT (SELECT TOP 1 idtipodesecho FROM tipodesecho WHERE tipodesecho.nombre = i.tipoDesecho), @idcontrato, i.peso, 1
         FROM @info i
-
-
-
+        WAITFOR DELAY '00:00:6';
 
 
 		IF @InicieTransaccion=1 BEGIN

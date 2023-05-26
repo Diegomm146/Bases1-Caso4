@@ -1,3 +1,9 @@
+
+update desechos set enabled  = 1
+delete from inventario_materiales  
+
+
+
 -- A) DIRTY READ 
 
 -- query 1 
@@ -35,7 +41,8 @@ DECLARE @puntorecoleccion int  SET @puntorecoleccion = 1;
 EXEC ProcesarDesechosFinal @idpuntorecoleccion = @puntorecoleccion, @desechosaprocesar = @tvp
 /*
 se cambia el isolation level a read committed en ProcesarDesechosFinal
-se cambia el isolation level a serializable en RegistrarMovimientoFinal
+se cambia el isolation level a repeatable read en RegistrarMovimientoFinal
+y se ponen primero las validaciones en RegistrarMovimientoFinal para que no se inserte data incorrecta
 */
 
 
@@ -76,7 +83,7 @@ EXEC ProcesarDesechosFinal @idpuntorecoleccion = @puntorecoleccion, @desechosapr
 
 SELECT * FROM desechos  
 /*
-se cambia el isolation level a read committed
+se cambia el isolation level a repeatable read
 */
 
 
@@ -95,8 +102,6 @@ DECLARE @puntorecoleccion int  SET @puntorecoleccion = 1;
 
 EXEC ProcesarDesechos @idpuntorecoleccion = @puntorecoleccion, @desechosaprocesar = @tvp
 
-update desechos set enabled  = 1
-delete from inventario_materiales  
 
 /*
 lo que esta ocurriendo es que se esta primero corriendo el query 1 el cual lee los pesos de los desehos procesados y luego el de los materiales 
@@ -164,90 +169,3 @@ EXEC ProcesarDesechosDLFinal @idpuntorecoleccion = @puntorecoleccion, @desechosa
 vi que al tener que prevenir el deadlock el serializble no funcionaba porque este mas bien ocasionaba que ocurriera
 al quedarse el procedure esperando pero si lo pongo con read commited no ocurre
 */
-
-
-
-
--- JOB PARA STORED PROCEDURES
--- Crear el job para recompilar los stored procedures una vez por semana:
-USE msdb;
-GO
-EXEC dbo.sp_add_job
-    @job_name = N'RecompilarStoredProcedures',
-    @enabled = 1,
-    @description = N'Recompila todos los stored procedures una vez por semana';
-
--- Configurar el horario de ejecución (una vez por semana, los lunes a las 00:00)
-EXEC dbo.sp_add_schedule
-    @schedule_name = N'RecompilarStoredProceduresSchedule',
-    @freq_type = 8, -- Weekly
-    @freq_interval = 1, -- Monday
-    @active_start_time = 0; -- 00:00
-
--- Asociar el job con el horario de ejecución
-EXEC dbo.sp_attach_schedule
-    @job_name = N'RecompilarStoredProcedures',
-    @schedule_name = N'RecompilarStoredProceduresSchedule';
-
--- Configurar el paso del job para recompilar los stored procedures
-EXEC dbo.sp_add_jobstep
-    @job_name = N'RecompilarStoredProcedures',
-    @step_name = N'RecompilarStoredProceduresStep',
-    @command = N'USE EsencialVerde; EXEC sp_recompile;', -- Recompila todos los stored procedures en la base de datos especificada
-    @database_name = N'YourDatabaseName',
-    @on_success_action = 1; -- Quita de la lista de pasos
-
--- Iniciar el job manualmente
-EXEC dbo.sp_start_job
-    @job_name = N'RecompilarStoredProcedures';
-
-
-
-DECLARE @RecompileSQL NVARCHAR(MAX) = N'';
-
-SELECT @RecompileSQL += 'EXEC sp_recompile ''' + SCHEMA_NAME(schema_id) + '.' + name + ''';' + CHAR(13)
-FROM sys.procedures;
-
-EXEC sp_executesql @RecompileSQL;
-
-
-USE msdb;
-GO
-
--- Create the job
-EXEC dbo.sp_add_job
-    @job_name = 'Recompile Stored Procedures',
-    @enabled = 1;
-
--- Add a description to the job
-EXEC dbo.sp_add_jobstep
-    @job_name = 'Recompile Stored Procedures',
-    @step_name = 'Recompile SPs',
-    @subsystem = 'TSQL',
-    @command = N'
-        DECLARE @RecompileSQL NVARCHAR(MAX) = N'''';  
-        
-        SELECT @RecompileSQL += ''EXEC sp_recompile '''''' + SCHEMA_NAME(schema_id) + '''''' + ''.'' + '''''' + name + '''''' + '';'' + CHAR(13)
-        FROM sys.procedures;
-        
-        EXEC sp_executesql @RecompileSQL;
-    ',
-    @retry_attempts = 0,
-    @on_success_action = 1;
-
--- Schedule the job to run once a week (Sundays at 2:00 AM)
-EXEC dbo.sp_add_schedule
-    @schedule_name = 'Weekly Execution',
-    @freq_type = 8,
-    @freq_interval = 1,
-    @active_start_time = 20000;
-
--- Associate the job with the schedule
-EXEC dbo.sp_attach_schedule
-    @job_name = 'Recompile Stored Procedures',
-    @schedule_name = 'Weekly Execution';
-
--- Start the job
-EXEC dbo.sp_start_job @job_name = 'Recompile Stored Procedures';
-
-

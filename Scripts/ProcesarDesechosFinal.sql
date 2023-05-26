@@ -3,7 +3,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-ALTER PROCEDURE [dbo].[ProcesarDesechosFinal]
+CREATE PROCEDURE [dbo].[ProcesarDesechosFinal]
     @idpuntorecoleccion int,
     @desechosaprocesar desechosaprocesar READONLY
 AS
@@ -19,7 +19,7 @@ BEGIN
     SET @InicieTransaccion = 0
     IF @@TRANCOUNT=0 BEGIN
         SET @InicieTransaccion = 1
-        SET TRANSACTION ISOLATION LEVEL READ COMMITTED
+        SET TRANSACTION ISOLATION LEVEL REPEATABLE READ 
         BEGIN TRANSACTION     
     END
     

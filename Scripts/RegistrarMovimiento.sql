@@ -2,7 +2,7 @@ SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
-CREATE PROCEDURE [dbo].[RegistrarMovimiento]
+CREATE PROCEDURE [dbo].[RegistrarMovimientoFinal]
     @producerName varchar(50),
     @index int,
     @recipientesDando IdsRecipientesType READONLY,
@@ -45,40 +45,11 @@ BEGIN
 	IF @@TRANCOUNT=0 BEGIN
 		SET @InicieTransaccion = 1
 		BEGIN TRANSACTION		
-        SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+        SET TRANSACTION ISOLATION LEVEL REPEATABLE READ
 	END
 	
 	BEGIN TRY
-
-
-        -- se registra el movimiento de recibimiento de los desechos
-        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
-        (idresponsable, cantidad, fecha, idtipo_movimiento,idpunto_recoleccion,idproductor,idrecolector,idcamion,idadress,idcontrato)
-        VALUES(@idresponsable,(SELECT SUM(recipientes) FROM @info),GETDATE(),1,(SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
-
-        SET @idMovimiento = @@IDENTITY;
-
-        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
-        SELECT @idMovimiento, r.idrecipiente
-        FROM @recipientesRecibiendo r
-
-        -- se registra el movimiento de dar los recipientes
-        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
-        (idresponsable, cantidad, fecha, idtipo_movimiento,idproductor,idrecolector,idcamion,idadress,idcontrato)
-        VALUES(@idresponsable,(SELECT COUNT(*) FROM @recipientesDando),GETDATE(),2, @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
-
-        SET @idMovimiento = @@IDENTITY;
-
-        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
-        SELECT @idMovimiento, r.idrecipiente
-        FROM @recipientesDando r
-
-        -- se insertan los desechos del movimiento
-        INSERT INTO desechos(idtipodesecho,idcontrato,peso,enabled)
-        SELECT (SELECT TOP 1 idtipodesecho FROM tipodesecho WHERE tipodesecho.nombre = i.tipoDesecho), @idcontrato, i.peso, 1
-        FROM @info i
-
-        WAITFOR DELAY '00:00:06';
+    
 
         IF EXISTS (SELECT rd.idRecipiente -- revisar si los recipientes recibiendo y dando repiten valores entre si
             FROM @recipientesDando rd
@@ -109,6 +80,34 @@ BEGIN
             RAISERROR('RECIPIENTES INSUFICIENTES PARA ALGUNO DE LOS TIPOS DE DESECHO', 16, 1);
             RETURN; 
         END
+
+        -- se registra el movimiento de recibimiento de los desechos
+        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
+        (idresponsable, cantidad, fecha, idtipo_movimiento,idpunto_recoleccion,idproductor,idrecolector,idcamion,idadress,idcontrato)
+        VALUES(@idresponsable,(SELECT SUM(recipientes) FROM @info),GETDATE(),1,(SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
+
+        SET @idMovimiento = @@IDENTITY;
+
+        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
+        SELECT @idMovimiento, r.idrecipiente
+        FROM @recipientesRecibiendo r
+
+        -- se registra el movimiento de dar los recipientes
+        INSERT INTO EsencialVerde.dbo.movimientos_recipiente
+        (idresponsable, cantidad, fecha, idtipo_movimiento,idproductor,idrecolector,idcamion,idadress,idcontrato)
+        VALUES(@idresponsable,(SELECT COUNT(*) FROM @recipientesDando),GETDATE(),2, @producerID, @idrecolector, @idcamion, (SELECT TOP 1 local.iddireccion FROM local WHERE local.idproductor = @producerID), @idcontrato);
+
+        SET @idMovimiento = @@IDENTITY;
+
+        INSERT INTO movimientos_recipiente_recipiente (idmovimientos_recipiente, idrecipiente)
+        SELECT @idMovimiento, r.idrecipiente
+        FROM @recipientesDando r
+
+        -- se insertan los desechos del movimiento
+        INSERT INTO desechos(idtipodesecho,idcontrato,peso,enabled)
+        SELECT (SELECT TOP 1 idtipodesecho FROM tipodesecho WHERE tipodesecho.nombre = i.tipoDesecho), @idcontrato, i.peso, 1
+        FROM @info i
+        WAITFOR DELAY '00:00:6';
 
 
 		IF @InicieTransaccion=1 BEGIN
