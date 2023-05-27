@@ -8,7 +8,7 @@ AS
 BEGIN
     DECLARE @pesoMateriales DECIMAL(8,2) ;
     DECLARE @pesoDesechos DECIMAL(8,2) ;
-
+    
     BEGIN TRANSACTION     
 
     SELECT @pesoDesechos = ISNULL(SUM(d.peso), 0)

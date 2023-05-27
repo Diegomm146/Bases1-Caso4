@@ -19,11 +19,17 @@ BEGIN
     SET @InicieTransaccion = 0
     IF @@TRANCOUNT=0 BEGIN
         SET @InicieTransaccion = 1
-        SET TRANSACTION ISOLATION LEVEL REPEATABLE READ 
+        SET TRANSACTION ISOLATION LEVEL READ COMMITTED
         BEGIN TRANSACTION     
     END
     
     BEGIN TRY
+        IF EXISTS (SELECT * FROM desechos AS d INNER JOIN tipodesecho AS td ON td.idtipodesecho = d.idtipodesecho WHERE td.nombre IN (SELECT nombre FROM @desechosaprocesar) AND td.reciclable = 0)
+        BEGIN
+            RAISERROR('UNO DE LOS DESECHOS DADOS NO ES APTO PARA PROCESAR', 16, 1);
+            RETURN; 
+        END
+
         -- select para obtener todos los desechos a procesar 
         INSERT INTO @desechos(iddesecho,idtipodesecho,peso)
         SELECT d.iddesecho,d.idtipodesecho,d.peso FROM desechos AS d
@@ -46,11 +52,6 @@ BEGIN
         FROM @desechos AS d
         INNER JOIN materiales AS m ON m.idtipodesecho = d.idtipodesecho;
 
-        IF EXISTS (SELECT * FROM desechos AS d INNER JOIN tipodesecho AS td ON td.idtipodesecho = d.idtipodesecho WHERE td.nombre IN (SELECT nombre FROM @desechosaprocesar) AND td.reciclable = 0)
-        BEGIN
-            RAISERROR('UNO DE LOS DESECHOS DADOS NO ES APTO PARA PROCESAR', 16, 1);
-            RETURN; 
-        END
 
         IF @InicieTransaccion=1 BEGIN
             SELECT 1;

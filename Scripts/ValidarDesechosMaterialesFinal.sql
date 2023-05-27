@@ -10,18 +10,18 @@ BEGIN
     DECLARE @pesoMateriales DECIMAL(8,2) ;
     DECLARE @pesoDesechos DECIMAL(8,2) ;
 
-    SET TRANSACTION ISOLATION LEVEL SNAPSHOT;
+    SET TRANSACTION ISOLATION LEVEL SNAPSHOT ;
     BEGIN TRANSACTION     
 
     SELECT @pesoDesechos = ISNULL(SUM(d.peso), 0) 
-    FROM desechos d WITH (HOLDLOCK)
+    FROM desechos d 
     INNER JOIN tipodesecho td ON td.idtipodesecho = d.idtipodesecho
     WHERE td.nombre = @desechoacomparar AND d.enabled = 0;
 
     WAITFOR DELAY '00:00:6';
 
     SELECT @pesoMateriales = ISNULL(SUM(im.peso), 0)
-    FROM inventario_materiales im WITH (HOLDLOCK)
+    FROM inventario_materiales im 
     INNER JOIN desechos d ON d.iddesecho = im.iddesecho
     INNER JOIN tipodesecho td ON td.idtipodesecho = d.idtipodesecho
     WHERE td.nombre = @desechoacomparar;

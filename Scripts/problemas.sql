@@ -41,9 +41,17 @@ DECLARE @puntorecoleccion int  SET @puntorecoleccion = 1;
 EXEC ProcesarDesechosFinal @idpuntorecoleccion = @puntorecoleccion, @desechosaprocesar = @tvp
 /*
 se cambia el isolation level a read committed en ProcesarDesechosFinal
-se cambia el isolation level a repeatable read en RegistrarMovimientoFinal
+se cambia el isolation level a read commited en RegistrarMovimientoFinal
 y se ponen primero las validaciones en RegistrarMovimientoFinal para que no se inserte data incorrecta
+y se haga rollback lo antes posible para que se eviten los dirty reads
 */
+
+
+
+
+
+
+
 
 
 -- B) LOST UPDATE 
@@ -64,7 +72,7 @@ SELECT * FROM desechos
 
 /*
 el query 1 hace un update de los desechos de carton y organico pero luego va a revisar de que el organico no se puede procesar entonces hacer
-rollback pero antes de que esto ocurra el query 2 hace el update pero esta vez completandolo correctamenet, pero al hacer el rollback del 
+rollback pero antes de que esto ocurra el query 2 hace el update pero esta vez completandolo correctamente, pero al hacer el rollback del 
 query 1 este segundo update se borra y se genera el LOST UPDATE
 */
 
@@ -83,7 +91,8 @@ EXEC ProcesarDesechosFinal @idpuntorecoleccion = @puntorecoleccion, @desechosapr
 
 SELECT * FROM desechos  
 /*
-se cambia el isolation level a repeatable read
+puse una validación al principio del procedure de esta manera si los datos son erroneos y se hace rollback, 
+este se hace lo mas rapido posible para prevenir el los update
 */
 
 
@@ -170,6 +179,6 @@ DECLARE @puntorecoleccion int  SET @puntorecoleccion = 1;
 
 EXEC ProcesarDesechosDLFinal @idpuntorecoleccion = @puntorecoleccion, @desechosaprocesar = @tvp
 /*
-vi que al tener que prevenir el deadlock el serializble no funcionaba porque este mas bien ocasionaba que ocurriera
-al quedarse el procedure esperando pero si lo pongo con read commited no ocurre
+vi que al tener que prevenir el deadlock el repeatable read no funcionaba porque este mas bien ocasionaba que ocurriera
+al quedarse el procedure esperando pero si lo pongo con read commited no ocurre ya que no se bloquean los datos entre si
 */
