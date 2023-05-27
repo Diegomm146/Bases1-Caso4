@@ -112,6 +112,10 @@ el phantom de estos materiales
  
 
 -- PHANTOM ARREGLADO
+
+ALTER DATABASE EsencialVerde
+SET ALLOW_SNAPSHOT_ISOLATION ON;
+
 -- query 1
 EXEC ValidarDesechosMaterialesFinal @desechoacomparar = 'carton'
 
@@ -122,8 +126,8 @@ DECLARE @puntorecoleccion int  SET @puntorecoleccion = 1;
 EXEC ProcesarDesechosFinal @idpuntorecoleccion = @puntorecoleccion, @desechosaprocesar = @tvp
 
 /*
-se cambia el isolation level a read committed
-y agregar lockhold en los select para que estos no cambien en ValidarDesechosMateriales
+se cambia el isolation level a snapshot en ValidarDesechosMaterialesFinal
+asi no detiene los otros procesos y tiene data consistente
 */
 
 
